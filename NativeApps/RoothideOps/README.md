@@ -34,3 +34,5 @@ Po CI buildu lze artifact nainstalovat do telefonu pres:
 ```bash
 python3 scripts/install_native_app_on_phone.py --host 10.77.0.2
 ```
+
+Skript preferuje TrollStore helper a pri jeho selhani prepne na jailbreak-native fallback do `/var/jb/Applications`.
