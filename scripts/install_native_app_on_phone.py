@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import glob
 import os
+import plistlib
 import shlex
 import subprocess
 import sys
@@ -54,7 +55,7 @@ def parse_args() -> argparse.Namespace:
 	return parser.parse_args()
 
 
-def extract_app_bundle(artifact: Path) -> tuple[tempfile.TemporaryDirectory[str], Path]:
+def extract_app_bundle(artifact: Path) -> tuple[tempfile.TemporaryDirectory[str], Path, str]:
 	tempdir = tempfile.TemporaryDirectory(prefix="roothideops-install-")
 	root = Path(tempdir.name)
 	with zipfile.ZipFile(artifact) as archive:
@@ -64,7 +65,14 @@ def extract_app_bundle(artifact: Path) -> tuple[tempfile.TemporaryDirectory[str]
 	if not apps:
 		tempdir.cleanup()
 		raise RuntimeError(f"No .app bundle found inside {artifact}.")
-	return tempdir, apps[0]
+	info_plist = apps[0] / "Info.plist"
+	with info_plist.open("rb") as handle:
+		info = plistlib.load(handle)
+	executable = info.get("CFBundleExecutable")
+	if not executable:
+		tempdir.cleanup()
+		raise RuntimeError(f"Missing CFBundleExecutable in {info_plist}.")
+	return tempdir, apps[0], executable
 
 
 def install_via_jailbreak_fallback(
@@ -73,8 +81,9 @@ def install_via_jailbreak_fallback(
 	scp_base: list[str],
 	bundle_id: str,
 ) -> None:
-	tempdir, app_bundle = extract_app_bundle(artifact)
+	tempdir, app_bundle, executable_name = extract_app_bundle(artifact)
 	remote_app = f"{REMOTE_JB_APPS_DIR}/{app_bundle.name}"
+	remote_executable = f"{remote_app}/{executable_name}"
 	backup_name = f"{app_bundle.name}.bak-$(date +%Y%m%d-%H%M%S)"
 	try:
 		run(
@@ -89,7 +98,21 @@ def install_via_jailbreak_fallback(
 			]
 		)
 		run(scp_base + ["-r", str(app_bundle), f"{ssh_base[-1]}:{REMOTE_JB_APPS_DIR}/"])
-		run(ssh_base + [remote_shell(f"uicache -p {shlex.quote(remote_app)}")])
+		run(
+			ssh_base
+			+ [
+				remote_shell(
+					" && ".join(
+						[
+							f"find {shlex.quote(remote_app)} -type d -exec chmod 755 {{}} +",
+							f"find {shlex.quote(remote_app)} -type f -exec chmod 644 {{}} +",
+							f"chmod 755 {shlex.quote(remote_executable)}",
+							f"uicache -p {shlex.quote(remote_app)}",
+						]
+					)
+				)
+			]
+		)
 		run(ssh_base + [remote_shell(f"uiopen --bundleid {shlex.quote(bundle_id)} || true")])
 	finally:
 		tempdir.cleanup()
