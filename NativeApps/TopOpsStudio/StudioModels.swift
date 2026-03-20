@@ -200,3 +200,21 @@ struct PlistField: Identifiable, Hashable {
 
 	var id: String { key }
 }
+
+struct ConnectionEndpoint: Identifiable, Hashable {
+	let label: String
+	let value: String
+	let note: String
+
+	var id: String { label + value }
+}
+
+struct ConnectionProfile: Identifiable, Hashable {
+	let title: String
+	let summary: String
+	let symbol: String
+	let tint: Color
+	let endpoints: [ConnectionEndpoint]
+
+	var id: String { title }
+}

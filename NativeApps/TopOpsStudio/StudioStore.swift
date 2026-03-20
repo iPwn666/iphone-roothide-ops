@@ -7,6 +7,13 @@ import CoreFoundation
 
 @MainActor
 final class StudioStore: ObservableObject {
+	private enum DefaultsKey {
+		static let smbHost = "TopOpsStudio.smbHost"
+		static let lanHost = "TopOpsStudio.lanHost"
+		static let wireGuardHost = "TopOpsStudio.wireGuardHost"
+		static let usbForwardPort = "TopOpsStudio.usbForwardPort"
+	}
+
 	@Published var folders: [WorkspaceFolder] = []
 	@Published var documents: [StudioDocument] = []
 	@Published var workspaceFiles: [WorkspaceItem] = []
@@ -18,12 +25,21 @@ final class StudioStore: ObservableObject {
 	@Published var ocrText = ""
 	@Published var plistFields: [PlistField] = []
 	@Published var lastError: String?
+	@Published var smbHost: String
+	@Published var lanHost: String
+	@Published var wireGuardHost: String
+	@Published var usbForwardPort: String
 
 	private var loadedPlistObject: [String: Any]?
 
 	static let textExtensions = Set(["swift", "py", "sh", "js", "json", "plist", "md", "txt", "yaml", "yml", "toml"])
 
 	init() {
+		let defaults = UserDefaults.standard
+		self.smbHost = defaults.string(forKey: DefaultsKey.smbHost) ?? "iPwnZu.local"
+		self.lanHost = defaults.string(forKey: DefaultsKey.lanHost) ?? "192.168.50.42"
+		self.wireGuardHost = defaults.string(forKey: DefaultsKey.wireGuardHost) ?? "10.77.0.2"
+		self.usbForwardPort = defaults.string(forKey: DefaultsKey.usbForwardPort) ?? "2222"
 		refreshWorkspace()
 	}
 
@@ -354,6 +370,45 @@ final class StudioStore: ObservableObject {
 		]
 	}
 
+	var connectionProfiles: [ConnectionProfile] {
+		[
+			ConnectionProfile(
+				title: "SSH",
+				summary: "Preferovane endpointy pro root a mobile pristup.",
+				symbol: "point.3.connected.trianglepath.dotted",
+				tint: StudioPalette.tide,
+				endpoints: [
+					ConnectionEndpoint(label: "WireGuard root", value: "ssh root@\(wireGuardHost)", note: "Primarni vzdaleny pristup."),
+					ConnectionEndpoint(label: "WireGuard mobile", value: "ssh mobile@\(wireGuardHost)", note: "Bezpecnejsi vychozi shell."),
+					ConnectionEndpoint(label: "USB root", value: "ssh -p \(usbForwardPort) root@127.0.0.1", note: "Kdyz Wi-Fi nebo WG spadne."),
+					ConnectionEndpoint(label: "USB mobile", value: "ssh -p \(usbForwardPort) mobile@127.0.0.1", note: "Rychly local recovery fallback.")
+				]
+			),
+			ConnectionProfile(
+				title: "SMB",
+				summary: "Files-friendly handoff bez dalsi appky.",
+				symbol: "externaldrive.connected.to.line.below.fill",
+				tint: StudioPalette.mint,
+				endpoints: [
+					ConnectionEndpoint(label: "Bonjour", value: "smb://\(smbHost)/iPhoneDrop", note: "Nejpohodlnejsi varianta v aplikaci Soubory."),
+					ConnectionEndpoint(label: "LAN", value: "smb://\(lanHost)/iPhoneDrop", note: "Kdyz mDNS zrovna nedrzi."),
+					ConnectionEndpoint(label: "WireGuard", value: "smb://10.77.0.1/iPhoneDrop", note: "Pro mobilni data pres tunel.")
+				]
+			),
+			ConnectionProfile(
+				title: "System paths",
+				summary: "Nejcastejsi cesty pro Filzu, SSH a recovery workflow.",
+				symbol: "folder.badge.gearshape",
+				tint: StudioPalette.amber,
+				endpoints: [
+					ConnectionEndpoint(label: "JB root", value: "/var/jb", note: "Bootstrap a tweak vrstva."),
+					ConnectionEndpoint(label: "root home", value: "/var/root", note: "Root shell a .ssh/.gnupg."),
+					ConnectionEndpoint(label: "mobile docs", value: "/private/var/mobile/Documents", note: "Soubory, exporty a import queue.")
+				]
+			)
+		]
+	}
+
 	var brokenModules: [BundledModuleStatus] {
 		bundledReport?.bundled_modules.filter { !$0.ok || $0.error != nil } ?? []
 	}
@@ -597,6 +652,48 @@ final class StudioStore: ObservableObject {
 	func updatePlistField(_ field: PlistField, value: String) {
 		guard let index = plistFields.firstIndex(where: { $0.id == field.id }) else { return }
 		plistFields[index].valueText = value
+	}
+
+	func persistConnectionSettings() {
+		let defaults = UserDefaults.standard
+		defaults.set(smbHost, forKey: DefaultsKey.smbHost)
+		defaults.set(lanHost, forKey: DefaultsKey.lanHost)
+		defaults.set(wireGuardHost, forKey: DefaultsKey.wireGuardHost)
+		defaults.set(usbForwardPort, forKey: DefaultsKey.usbForwardPort)
+	}
+
+	func copyToClipboard(_ value: String) {
+		UIPasteboard.general.string = value
+	}
+
+	func exportConnectionPack() {
+		let destination = Self.url(for: .exports).appendingPathComponent("Connection-Pack.md")
+		let body = """
+		# TopOps Studio Connection Pack
+
+		## SSH
+		- root via WireGuard: `ssh root@\(wireGuardHost)`
+		- mobile via WireGuard: `ssh mobile@\(wireGuardHost)`
+		- root via USB: `ssh -p \(usbForwardPort) root@127.0.0.1`
+		- mobile via USB: `ssh -p \(usbForwardPort) mobile@127.0.0.1`
+
+		## SMB
+		- Bonjour: `smb://\(smbHost)/iPhoneDrop`
+		- LAN: `smb://\(lanHost)/iPhoneDrop`
+		- WireGuard: `smb://10.77.0.1/iPhoneDrop`
+
+		## Paths
+		- `/var/jb`
+		- `/var/root`
+		- `/private/var/mobile/Documents`
+		"""
+
+		do {
+			try body.write(to: destination, atomically: true, encoding: .utf8)
+			refreshWorkspace()
+		} catch {
+			lastError = "Export connection packu selhal: \(error.localizedDescription)"
+		}
 	}
 
 	private func saveSelectedPlist() {

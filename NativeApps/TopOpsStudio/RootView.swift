@@ -21,6 +21,13 @@ struct RootView: View {
 			}
 
 			NavigationStack {
+				TransportView(store: store)
+			}
+			.tabItem {
+				Label("Transport", systemImage: "network")
+			}
+
+			NavigationStack {
 				EditorView(store: store)
 			}
 			.tabItem {
@@ -201,6 +208,99 @@ private struct EditorView: View {
 				.disabled(store.selectedFile == nil)
 			}
 		}
+	}
+}
+
+private struct TransportView: View {
+	@ObservedObject var store: StudioStore
+
+	var body: some View {
+		ScrollView {
+			VStack(alignment: .leading, spacing: 18) {
+				FrostCard(title: "Connection defaults", subtitle: "Tyhle hodnoty se propisou do connection packu a dalsich exportu.") {
+					VStack(alignment: .leading, spacing: 12) {
+						LabeledContent("SMB host") {
+							TextField("iPwnZu.local", text: $store.smbHost)
+								.textInputAutocapitalization(.never)
+								.autocorrectionDisabled()
+								.multilineTextAlignment(.trailing)
+						}
+						LabeledContent("LAN host") {
+							TextField("192.168.50.42", text: $store.lanHost)
+								.textInputAutocapitalization(.never)
+								.autocorrectionDisabled()
+								.multilineTextAlignment(.trailing)
+						}
+						LabeledContent("WireGuard host") {
+							TextField("10.77.0.2", text: $store.wireGuardHost)
+								.textInputAutocapitalization(.never)
+								.autocorrectionDisabled()
+								.multilineTextAlignment(.trailing)
+						}
+						LabeledContent("USB port") {
+							TextField("2222", text: $store.usbForwardPort)
+								.keyboardType(.numberPad)
+								.multilineTextAlignment(.trailing)
+						}
+
+						HStack(spacing: 12) {
+							Button("Save defaults") {
+								store.persistConnectionSettings()
+							}
+							.buttonStyle(.borderedProminent)
+
+							Button("Export pack") {
+								store.exportConnectionPack()
+							}
+							.buttonStyle(.bordered)
+						}
+					}
+				}
+
+				ForEach(store.connectionProfiles) { profile in
+					FrostCard(title: profile.title, subtitle: profile.summary) {
+						VStack(alignment: .leading, spacing: 12) {
+							ForEach(profile.endpoints) { endpoint in
+								VStack(alignment: .leading, spacing: 6) {
+									HStack(alignment: .top) {
+										VStack(alignment: .leading, spacing: 2) {
+											Text(endpoint.label)
+												.font(.subheadline.weight(.semibold))
+												.foregroundStyle(StudioPalette.ink)
+											Text(endpoint.note)
+												.font(.caption)
+												.foregroundStyle(.secondary)
+										}
+										Spacer()
+										Button {
+											store.copyToClipboard(endpoint.value)
+										} label: {
+											Image(systemName: "doc.on.doc")
+										}
+										.buttonStyle(.bordered)
+										.tint(profile.tint)
+									}
+
+									Text(endpoint.value)
+										.font(.footnote.monospaced())
+										.foregroundStyle(profile.tint)
+										.textSelection(.enabled)
+										.frame(maxWidth: .infinity, alignment: .leading)
+										.padding(10)
+										.background(
+											RoundedRectangle(cornerRadius: 16, style: .continuous)
+												.fill(StudioPalette.paper)
+										)
+								}
+							}
+						}
+					}
+				}
+			}
+			.padding(20)
+		}
+		.background(StudioBackground())
+		.navigationTitle("Transport")
 	}
 }
 
