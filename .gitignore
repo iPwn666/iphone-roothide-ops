@@ -9,4 +9,10 @@ __pycache__/
 build/
 dist/
 tmp/
-
+.env
+.env.local
+.env.*
+!.env.example
+!*.example
+node_modules/
+.next/

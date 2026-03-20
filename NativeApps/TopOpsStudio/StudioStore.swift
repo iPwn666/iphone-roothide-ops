@@ -1,9 +1,11 @@
 import CoreML
 import Foundation
+import CoreFoundation
+import Photos
 import SwiftUI
 import UIKit
+import UserNotifications
 import Vision
-import CoreFoundation
 
 @MainActor
 final class StudioStore: ObservableObject {
@@ -28,6 +30,9 @@ final class StudioStore: ObservableObject {
 	@Published var ocrText = ""
 	@Published var plistFields: [PlistField] = []
 	@Published var lastError: String?
+	@Published var seedStatus = "No secure seed imported yet."
+	@Published var notificationPermission = "unknown"
+	@Published var photoPermission = "unknown"
 	@Published var smbHost: String
 	@Published var lanHost: String
 	@Published var wireGuardHost: String
@@ -53,6 +58,8 @@ final class StudioStore: ObservableObject {
 		self.sshPort = defaults.string(forKey: DefaultsKey.sshPort) ?? "22"
 		self.sshCustomCommand = defaults.string(forKey: DefaultsKey.sshCustomCommand) ?? "uname -a"
 		self.sshPassword = KeychainStore.load(account: "sshPassword")
+		importLocalSeedIfAvailable()
+		refreshPermissionState()
 		refreshWorkspace()
 	}
 
@@ -161,6 +168,22 @@ final class StudioStore: ObservableObject {
 		scanFiles()
 		loadReports()
 		scanModels()
+	}
+
+	func requestNotificationPermission() {
+		UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { [weak self] _, _ in
+			Task { @MainActor in
+				self?.refreshPermissionState()
+			}
+		}
+	}
+
+	func requestPhotoPermission() {
+		PHPhotoLibrary.requestAuthorization(for: .readWrite) { [weak self] _ in
+			Task { @MainActor in
+				self?.refreshPermissionState()
+			}
+		}
 	}
 
 	func createStarterFile(_ template: StarterTemplate) {
@@ -796,6 +819,95 @@ final class StudioStore: ObservableObject {
 			}
 		} catch {
 			lastError = "Plist nejde ulozit: \(error.localizedDescription)"
+		}
+	}
+
+	private func refreshPermissionState() {
+		let photoStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+		switch photoStatus {
+		case .authorized, .limited:
+			photoPermission = "granted"
+		case .denied, .restricted:
+			photoPermission = "denied"
+		case .notDetermined:
+			photoPermission = "not requested"
+		@unknown default:
+			photoPermission = "unknown"
+		}
+
+		UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+			let status: String
+			switch settings.authorizationStatus {
+			case .authorized, .provisional, .ephemeral:
+				status = "granted"
+			case .denied:
+				status = "denied"
+			case .notDetermined:
+				status = "not requested"
+			@unknown default:
+				status = "unknown"
+			}
+
+			Task { @MainActor in
+				self?.notificationPermission = status
+			}
+		}
+	}
+
+	private func importLocalSeedIfAvailable() {
+		let manager = FileManager.default
+		let candidates = [
+			Self.url(for: .imports).appendingPathComponent("TopOpsStudioSeed.json"),
+			Self.documentsURL().appendingPathComponent("TopOpsStudioSeed.json"),
+		]
+
+		guard let source = candidates.first(where: { manager.fileExists(atPath: $0.path) }) else {
+			return
+		}
+
+		do {
+			let data = try Data(contentsOf: source)
+			let seed = try JSONDecoder().decode(StudioSeed.self, from: data)
+
+			if let value = seed.smbHost, !value.isEmpty {
+				smbHost = value
+			}
+			if let value = seed.lanHost, !value.isEmpty {
+				lanHost = value
+			}
+			if let value = seed.wireGuardHost, !value.isEmpty {
+				wireGuardHost = value
+			}
+			if let value = seed.usbForwardPort, !value.isEmpty {
+				usbForwardPort = value
+			}
+			if let value = seed.sshUsername, !value.isEmpty {
+				sshUsername = value
+			}
+			if let value = seed.sshPort, !value.isEmpty {
+				sshPort = value
+			}
+			if let value = seed.sshCustomCommand, !value.isEmpty {
+				sshCustomCommand = value
+			}
+			if let value = seed.sshPassword, !value.isEmpty {
+				sshPassword = value
+			}
+
+			persistConnectionSettings()
+
+			let importedURL = source.deletingPathExtension().appendingPathExtension("imported.json")
+			try? manager.removeItem(at: importedURL)
+			try manager.moveItem(at: source, to: importedURL)
+
+			var note = "Secure seed imported."
+			if let seedNote = seed.notes, !seedNote.isEmpty {
+				note += " \(seedNote)"
+			}
+			seedStatus = note
+		} catch {
+			seedStatus = "Seed import failed: \(error.localizedDescription)"
+			lastError = error.localizedDescription
 		}
 	}
 }

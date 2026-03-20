@@ -1,0 +1,12 @@
+{
+  "smbHost": "iPwnZu.local",
+  "lanHost": "192.168.50.42",
+  "wireGuardHost": "10.77.0.2",
+  "usbForwardPort": "2222",
+  "sshUsername": "mobile",
+  "sshPassword": "set-locally-not-in-git",
+  "sshPort": "22",
+  "sshCustomCommand": "whoami && uname -a",
+  "openAIModel": "gpt-4.1-mini",
+  "notes": "Place this file into TopOps Studio/Imports as TopOpsStudioSeed.json for one-time secure import."
+}

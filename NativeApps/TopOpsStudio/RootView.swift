@@ -98,6 +98,42 @@ private struct WorkbenchView: View {
 					}
 				}
 
+				FrostCard(title: "Permissions & Seed", subtitle: "Secure first-run defaults bez hardcoded secrets v buildu.") {
+					VStack(alignment: .leading, spacing: 12) {
+						HStack {
+							Label("Notifications", systemImage: "bell.badge")
+							Spacer()
+							Text(store.notificationPermission)
+								.foregroundStyle(.secondary)
+						}
+
+						HStack {
+							Label("Photos", systemImage: "photo.on.rectangle")
+							Spacer()
+							Text(store.photoPermission)
+								.foregroundStyle(.secondary)
+						}
+
+						Text(store.seedStatus)
+							.font(.footnote)
+							.foregroundStyle(.secondary)
+
+						HStack(spacing: 10) {
+							Button("Allow notifications") {
+								store.requestNotificationPermission()
+							}
+							.buttonStyle(.borderedProminent)
+							.tint(StudioPalette.tide)
+
+							Button("Allow Photos") {
+								store.requestPhotoPermission()
+							}
+							.buttonStyle(.bordered)
+							.tint(StudioPalette.mint)
+						}
+					}
+				}
+
 				FrostCard(title: "Native direction", subtitle: "MVP navrzeny jako Pythonista-like alternativa, ne kopie.") {
 					VStack(alignment: .leading, spacing: 10) {
 						ForEach(store.featureCards) { feature in

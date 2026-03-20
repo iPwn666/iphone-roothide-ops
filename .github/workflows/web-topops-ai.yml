@@ -1,0 +1,40 @@
+name: Web App: TopOps AI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/topops-ai/**"
+      - ".github/workflows/web-topops-ai.yml"
+  pull_request:
+    paths:
+      - "web/topops-ai/**"
+      - ".github/workflows/web-topops-ai.yml"
+
+jobs:
+  build-web-app:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: web/topops-ai
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/topops-ai/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_GEMINI_API_KEY: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
+        run: npm run build
