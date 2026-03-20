@@ -1,0 +1,72 @@
+name: "Native App: TopOps Studio"
+
+on:
+  push:
+    branches:
+      - "*"
+    paths:
+      - "NativeApps/TopOpsStudio/**"
+      - ".github/workflows/native-topopsstudio.yml"
+  pull_request:
+    branches:
+      - "*"
+    paths:
+      - "NativeApps/TopOpsStudio/**"
+      - ".github/workflows/native-topopsstudio.yml"
+  workflow_dispatch:
+
+jobs:
+  build-native-app:
+    runs-on: macos-latest
+    steps:
+      - name: Xcode Setup
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Build Tools
+        run: brew install xcodegen ldid
+
+      - name: Generate Project
+        run: |
+          cd NativeApps/TopOpsStudio
+          xcodegen generate
+
+      - name: Build
+        run: |
+          xcodebuild \
+            -project NativeApps/TopOpsStudio/TopOpsStudio.xcodeproj \
+            -scheme TopOpsStudio \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination generic/platform=iOS \
+            -derivedDataPath build/TopOpsStudio \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Inject TrollStore Signature
+        run: |
+          ldid -SNativeApps/TopOpsStudio/TopOpsStudio.entitlements \
+            build/TopOpsStudio/Build/Products/Release-iphoneos/TopOpsStudio.app/TopOpsStudio
+
+      - name: Package IPA
+        run: |
+          rm -rf build/TopOpsStudio/package
+          mkdir -p build/TopOpsStudio/package/Payload
+          cp -R build/TopOpsStudio/Build/Products/Release-iphoneos/TopOpsStudio.app build/TopOpsStudio/package/Payload/
+          cd build/TopOpsStudio/package
+          zip -qry ../TopOpsStudio-unsigned.ipa Payload
+          cp ../TopOpsStudio-unsigned.ipa ../TopOpsStudio.tipa
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TopOpsStudio-build
+          if-no-files-found: error
+          path: |
+            ${{ github.workspace }}/build/TopOpsStudio/Build/Products/Release-iphoneos/*.app
+            ${{ github.workspace }}/build/TopOpsStudio/TopOpsStudio-unsigned.ipa
+            ${{ github.workspace }}/build/TopOpsStudio/TopOpsStudio.tipa

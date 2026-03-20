@@ -24,6 +24,7 @@ Operational docs, audits, and helper scripts for a roothide-jailbroken iPhone XS
 - `scripts/`: generic recovery and device helper scripts
 - `tools/`: standalone utilities
 - `templates/`: reusable config and shell templates
+- `NativeApps/TopOpsStudio/`: native iPhone workbench with Files, OCR, report import, and Core ML inventory
 
 ## Notes
 
