@@ -1,0 +1,72 @@
+name: "Native App: build"
+
+on:
+  push:
+    branches:
+      - "*"
+    paths:
+      - "NativeApps/RoothideOps/**"
+      - ".github/workflows/native-app.yml"
+  pull_request:
+    branches:
+      - "*"
+    paths:
+      - "NativeApps/RoothideOps/**"
+      - ".github/workflows/native-app.yml"
+  workflow_dispatch:
+
+jobs:
+  build-native-app:
+    runs-on: macos-latest
+    steps:
+      - name: Xcode Setup
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Build Tools
+        run: brew install xcodegen ldid
+
+      - name: Generate Project
+        run: |
+          cd NativeApps/RoothideOps
+          xcodegen generate
+
+      - name: Build
+        run: |
+          xcodebuild \
+            -project NativeApps/RoothideOps/RoothideOps.xcodeproj \
+            -scheme RoothideOps \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination generic/platform=iOS \
+            -derivedDataPath build/RoothideOps \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Inject TrollStore Signature
+        run: |
+          ldid -SNativeApps/RoothideOps/RoothideOps.entitlements \
+            build/RoothideOps/Build/Products/Release-iphoneos/RoothideOps.app/RoothideOps
+
+      - name: Package IPA
+        run: |
+          rm -rf build/RoothideOps/package
+          mkdir -p build/RoothideOps/package/Payload
+          cp -R build/RoothideOps/Build/Products/Release-iphoneos/RoothideOps.app build/RoothideOps/package/Payload/
+          cd build/RoothideOps/package
+          zip -qry ../RoothideOps-unsigned.ipa Payload
+          cp ../RoothideOps-unsigned.ipa ../RoothideOps.tipa
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RoothideOps-build
+          if-no-files-found: error
+          path: |
+            ${{ github.workspace }}/build/RoothideOps/Build/Products/Release-iphoneos/*.app
+            ${{ github.workspace }}/build/RoothideOps/RoothideOps-unsigned.ipa
+            ${{ github.workspace }}/build/RoothideOps/RoothideOps.tipa
