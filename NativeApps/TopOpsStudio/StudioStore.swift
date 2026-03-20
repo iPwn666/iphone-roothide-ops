@@ -3,18 +3,23 @@ import Foundation
 import SwiftUI
 import UIKit
 import Vision
+import CoreFoundation
 
 @MainActor
 final class StudioStore: ObservableObject {
 	@Published var folders: [WorkspaceFolder] = []
 	@Published var documents: [StudioDocument] = []
-	@Published var selectedDocument: StudioDocument?
+	@Published var workspaceFiles: [WorkspaceItem] = []
+	@Published var selectedFile: WorkspaceItem?
 	@Published var editorText = ""
 	@Published var runtimeReport: RuntimeReport?
 	@Published var bundledReport: BundledModulesReport?
 	@Published var modelItems: [CoreMLInventoryItem] = []
 	@Published var ocrText = ""
+	@Published var plistFields: [PlistField] = []
 	@Published var lastError: String?
+
+	private var loadedPlistObject: [String: Any]?
 
 	static let textExtensions = Set(["swift", "py", "sh", "js", "json", "plist", "md", "txt", "yaml", "yml", "toml"])
 
@@ -124,7 +129,7 @@ final class StudioStore: ObservableObject {
 		Self.ensureWorkspace()
 		lastError = nil
 		scanFolders()
-		scanDocuments()
+		scanFiles()
 		loadReports()
 		scanModels()
 	}
@@ -174,28 +179,55 @@ final class StudioStore: ObservableObject {
 			try body.write(to: destination, atomically: true, encoding: .utf8)
 			refreshWorkspace()
 			if Self.textExtensions.contains(destination.pathExtension.lowercased()) {
-				let doc = StudioDocument(url: destination, relativePath: relativePath(for: destination), icon: iconName(for: destination))
-				loadDocument(doc)
+				let item = WorkspaceItem(
+					url: destination,
+					relativePath: relativePath(for: destination),
+					folderName: destination.deletingLastPathComponent().lastPathComponent,
+					icon: iconName(for: destination),
+					fileSize: Int64((try? destination.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0),
+					modifiedAt: try? destination.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
+					isEditableText: true,
+					isPlist: destination.pathExtension.lowercased() == "plist"
+				)
+				loadFile(item)
 			}
 		} catch {
 			lastError = error.localizedDescription
 		}
 	}
 
-	func loadDocument(_ document: StudioDocument) {
-		selectedDocument = document
+	func loadFile(_ file: WorkspaceItem) {
+		selectedFile = file
+		loadedPlistObject = nil
+		plistFields = []
+
+		if file.isPlist {
+			loadPlistFile(file)
+			return
+		}
+
+		guard file.isEditableText else {
+			editorText = ""
+			return
+		}
+
 		do {
-			editorText = try String(contentsOf: document.url, encoding: .utf8)
+			editorText = try String(contentsOf: file.url, encoding: .utf8)
 		} catch {
 			editorText = ""
-			lastError = "Soubor nejde otevrit: \(document.title)"
+			lastError = "Soubor nejde otevrit: \(file.title)"
 		}
 	}
 
-	func saveSelectedDocument() {
-		guard let url = selectedDocument?.url else { return }
+	func saveSelectedFile() {
+		guard let file = selectedFile else { return }
+		if file.isPlist {
+			saveSelectedPlist()
+			return
+		}
+
 		do {
-			try editorText.write(to: url, atomically: true, encoding: .utf8)
+			try editorText.write(to: file.url, atomically: true, encoding: .utf8)
 			refreshWorkspace()
 		} catch {
 			lastError = "Ulozeni selhalo: \(error.localizedDescription)"
@@ -339,9 +371,9 @@ final class StudioStore: ObservableObject {
 		}
 	}
 
-	private func scanDocuments() {
+	private func scanFiles() {
 		let manager = FileManager.default
-		var collected: [StudioDocument] = []
+		var collected: [WorkspaceItem] = []
 
 		for kind in WorkspaceFolderKind.allCases {
 			let base = Self.url(for: kind)
@@ -350,18 +382,35 @@ final class StudioStore: ObservableObject {
 			}
 
 			for case let url as URL in enumerator {
+				let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey])
+				guard values?.isRegularFile == true else { continue }
 				let ext = url.pathExtension.lowercased()
-				guard Self.textExtensions.contains(ext) else { continue }
-				collected.append(StudioDocument(url: url, relativePath: relativePath(for: url), icon: iconName(for: url)))
+				collected.append(
+					WorkspaceItem(
+						url: url,
+						relativePath: relativePath(for: url),
+						folderName: kind.rawValue,
+						icon: iconName(for: url),
+						fileSize: Int64(values?.fileSize ?? 0),
+						modifiedAt: values?.contentModificationDate,
+						isEditableText: Self.textExtensions.contains(ext),
+						isPlist: ext == "plist"
+					)
+				)
 			}
 		}
 
-		documents = collected.sorted { $0.relativePath < $1.relativePath }
-		if selectedDocument == nil, let first = documents.first {
-			loadDocument(first)
-		} else if let selectedDocument, !documents.contains(selectedDocument) {
-			self.selectedDocument = nil
+		workspaceFiles = collected.sorted { $0.relativePath < $1.relativePath }
+		documents = workspaceFiles
+			.filter { $0.isEditableText }
+			.map { StudioDocument(url: $0.url, relativePath: $0.relativePath, icon: $0.icon) }
+
+		if selectedFile == nil, let first = workspaceFiles.first(where: { $0.isEditableText }) {
+			loadFile(first)
+		} else if let selectedFile, !workspaceFiles.contains(selectedFile) {
+			self.selectedFile = nil
 			editorText = ""
+			plistFields = []
 		}
 	}
 
@@ -479,6 +528,130 @@ final class StudioStore: ObservableObject {
 			return "doc.text"
 		default:
 			return "doc.plaintext"
+		}
+	}
+
+	private func loadPlistFile(_ file: WorkspaceItem) {
+		do {
+			let data = try Data(contentsOf: file.url)
+			let object = try PropertyListSerialization.propertyList(from: data, options: [], format: nil)
+
+			guard let dictionary = object as? [String: Any] else {
+				editorText = ""
+				plistFields = []
+				loadedPlistObject = nil
+				lastError = "Plist inspector zatim podporuje jen top-level dictionary."
+				return
+			}
+
+			loadedPlistObject = dictionary
+			plistFields = dictionary.keys.sorted().map { key in
+				let value = dictionary[key] as Any
+				return field(for: key, value: value)
+			}
+
+			if let xmlData = try? PropertyListSerialization.data(fromPropertyList: dictionary, format: .xml, options: 0),
+			   let xml = String(data: xmlData, encoding: .utf8) {
+				editorText = xml
+			} else {
+				editorText = ""
+			}
+		} catch {
+			loadedPlistObject = nil
+			plistFields = []
+			editorText = ""
+			lastError = "Plist nejde nacist: \(error.localizedDescription)"
+		}
+	}
+
+	private func field(for key: String, value: Any) -> PlistField {
+		switch value {
+		case let value as String:
+			return PlistField(key: key, valueText: value, kind: .string, isEditable: true)
+		case let value as NSNumber:
+			if CFGetTypeID(value) == CFBooleanGetTypeID() {
+				return PlistField(key: key, valueText: value.boolValue ? "true" : "false", kind: .bool, isEditable: true)
+			}
+			if value.doubleValue.rounded() == value.doubleValue {
+				return PlistField(key: key, valueText: String(value.intValue), kind: .integer, isEditable: true)
+			}
+			return PlistField(key: key, valueText: String(value.doubleValue), kind: .double, isEditable: true)
+		case let value as Date:
+			return PlistField(
+				key: key,
+				valueText: ISO8601DateFormatter().string(from: value),
+				kind: .date,
+				isEditable: true
+			)
+		case let value as [Any]:
+			return PlistField(key: key, valueText: "Array (\(value.count) items)", kind: .array, isEditable: false)
+		case let value as [String: Any]:
+			return PlistField(key: key, valueText: "Dictionary (\(value.count) keys)", kind: .dictionary, isEditable: false)
+		case let value as Data:
+			return PlistField(key: key, valueText: "Data (\(value.count) bytes)", kind: .data, isEditable: false)
+		default:
+			return PlistField(key: key, valueText: String(describing: value), kind: .unknown, isEditable: false)
+		}
+	}
+
+	func updatePlistField(_ field: PlistField, value: String) {
+		guard let index = plistFields.firstIndex(where: { $0.id == field.id }) else { return }
+		plistFields[index].valueText = value
+	}
+
+	private func saveSelectedPlist() {
+		guard let file = selectedFile, var dictionary = loadedPlistObject else {
+			lastError = "Neni nacteny zadny plist."
+			return
+		}
+
+		for field in plistFields {
+			guard field.isEditable else { continue }
+			switch field.kind {
+			case .string:
+				dictionary[field.key] = field.valueText
+			case .integer:
+				guard let value = Int(field.valueText.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+					lastError = "Klic \(field.key) ocekava integer."
+					return
+				}
+				dictionary[field.key] = value
+			case .double:
+				guard let value = Double(field.valueText.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+					lastError = "Klic \(field.key) ocekava decimal."
+					return
+				}
+				dictionary[field.key] = value
+			case .bool:
+				let normalized = field.valueText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+				guard ["true", "false", "1", "0", "yes", "no"].contains(normalized) else {
+					lastError = "Klic \(field.key) ocekava bool."
+					return
+				}
+				dictionary[field.key] = ["true", "1", "yes"].contains(normalized)
+			case .date:
+				let formatter = ISO8601DateFormatter()
+				guard let value = formatter.date(from: field.valueText.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+					lastError = "Klic \(field.key) ocekava ISO8601 datum."
+					return
+				}
+				dictionary[field.key] = value
+			case .array, .dictionary, .data, .unknown:
+				break
+			}
+		}
+
+		do {
+			let data = try PropertyListSerialization.data(fromPropertyList: dictionary, format: .xml, options: 0)
+			try data.write(to: file.url, options: .atomic)
+			loadedPlistObject = dictionary
+			editorText = String(data: data, encoding: .utf8) ?? ""
+			refreshWorkspace()
+			if let refreshed = workspaceFiles.first(where: { $0.url == file.url }) {
+				loadFile(refreshed)
+			}
+		} catch {
+			lastError = "Plist nejde ulozit: \(error.localizedDescription)"
 		}
 	}
 }

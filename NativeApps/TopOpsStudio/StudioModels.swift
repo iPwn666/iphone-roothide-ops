@@ -61,6 +61,20 @@ struct StudioDocument: Identifiable, Hashable {
 	var title: String { url.lastPathComponent }
 }
 
+struct WorkspaceItem: Identifiable, Hashable {
+	let url: URL
+	let relativePath: String
+	let folderName: String
+	let icon: String
+	let fileSize: Int64
+	let modifiedAt: Date?
+	let isEditableText: Bool
+	let isPlist: Bool
+
+	var id: URL { url }
+	var title: String { url.lastPathComponent }
+}
+
 enum StarterTemplate: String, CaseIterable, Identifiable {
 	case swiftUtility
 	case pythonBridge
@@ -164,4 +178,25 @@ struct CoreMLInventoryItem: Identifiable {
 	let symbol: String
 	let tint: Color
 	var id: String { title + status }
+}
+
+enum PlistValueKind: String {
+	case string
+	case integer
+	case double
+	case bool
+	case date
+	case array
+	case dictionary
+	case data
+	case unknown
+}
+
+struct PlistField: Identifiable, Hashable {
+	let key: String
+	var valueText: String
+	let kind: PlistValueKind
+	let isEditable: Bool
+
+	var id: String { key }
 }

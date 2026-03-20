@@ -14,6 +14,13 @@ struct RootView: View {
 			}
 
 			NavigationStack {
+				FilesView(store: store)
+			}
+			.tabItem {
+				Label("Files", systemImage: "folder.fill")
+			}
+
+			NavigationStack {
 				EditorView(store: store)
 			}
 			.tabItem {
@@ -138,14 +145,14 @@ private struct EditorView: View {
 				FrostCard(title: "Open file", subtitle: "Swift, Python, shell, plist, JSON a markdown soubory ze workspace.") {
 					ScrollView(.horizontal, showsIndicators: false) {
 						HStack(spacing: 10) {
-							ForEach(store.documents) { document in
+							ForEach(store.workspaceFiles.filter { $0.isEditableText }) { file in
 								Button {
-									store.loadDocument(document)
+									store.loadFile(file)
 								} label: {
 									VStack(alignment: .leading, spacing: 6) {
-										Label(document.title, systemImage: document.icon)
+										Label(file.title, systemImage: file.icon)
 											.font(.caption.weight(.semibold))
-										Text(document.relativePath)
+										Text(file.relativePath)
 											.font(.caption2.monospaced())
 											.lineLimit(1)
 									}
@@ -153,29 +160,33 @@ private struct EditorView: View {
 									.frame(width: 160, alignment: .leading)
 									.background(
 										RoundedRectangle(cornerRadius: 20, style: .continuous)
-											.fill(store.selectedDocument == document ? StudioPalette.tide.opacity(0.16) : Color.white)
+											.fill(store.selectedFile == file ? StudioPalette.tide.opacity(0.16) : Color.white)
 									)
 								}
-								.foregroundStyle(store.selectedDocument == document ? StudioPalette.tide : StudioPalette.ink)
+								.foregroundStyle(store.selectedFile == file ? StudioPalette.tide : StudioPalette.ink)
 							}
 						}
 					}
 				}
 
 				FrostCard(
-					title: store.selectedDocument?.title ?? "No file selected",
-					subtitle: store.selectedDocument?.relativePath ?? "Vyber soubor z Projects, Snippets, Reports nebo Imports."
+					title: store.selectedFile?.title ?? "No file selected",
+					subtitle: store.selectedFile?.relativePath ?? "Vyber soubor z Projects, Snippets, Reports nebo Imports."
 				) {
-					TextEditor(text: $store.editorText)
-						.font(.system(.body, design: .monospaced))
-						.foregroundStyle(StudioPalette.ink)
-						.frame(minHeight: 360)
-						.scrollContentBackground(.hidden)
-						.padding(12)
-						.background(
-							RoundedRectangle(cornerRadius: 20, style: .continuous)
-								.fill(StudioPalette.paper)
-						)
+					if store.selectedFile?.isPlist == true {
+						PlistInspectorView(store: store)
+					} else {
+						TextEditor(text: $store.editorText)
+							.font(.system(.body, design: .monospaced))
+							.foregroundStyle(StudioPalette.ink)
+							.frame(minHeight: 360)
+							.scrollContentBackground(.hidden)
+							.padding(12)
+							.background(
+								RoundedRectangle(cornerRadius: 20, style: .continuous)
+									.fill(StudioPalette.paper)
+							)
+					}
 				}
 			}
 			.padding(20)
@@ -185,10 +196,147 @@ private struct EditorView: View {
 		.toolbar {
 			ToolbarItem(placement: .topBarTrailing) {
 				Button("Save") {
-					store.saveSelectedDocument()
+					store.saveSelectedFile()
 				}
-				.disabled(store.selectedDocument == nil)
+				.disabled(store.selectedFile == nil)
 			}
+		}
+	}
+}
+
+private struct FilesView: View {
+	@ObservedObject var store: StudioStore
+
+	private var groupedFiles: [(String, [WorkspaceItem])] {
+		let grouped = Dictionary(grouping: store.workspaceFiles) { $0.folderName }
+		return grouped.keys
+			.sorted()
+			.map { key in
+				(key, grouped[key, default: []].sorted { $0.relativePath < $1.relativePath })
+			}
+	}
+
+	var body: some View {
+		List {
+			Section("Workspace") {
+				ForEach(store.folders) { folder in
+					HStack(spacing: 12) {
+						Image(systemName: folder.kind.symbol)
+							.foregroundStyle(StudioPalette.tide)
+						VStack(alignment: .leading, spacing: 2) {
+							Text(folder.kind.rawValue)
+								.font(.subheadline.weight(.semibold))
+							Text(folder.kind.summary)
+								.font(.caption)
+								.foregroundStyle(.secondary)
+						}
+						Spacer()
+						Text("\(folder.fileCount)")
+							.font(.caption.monospacedDigit())
+							.foregroundStyle(.secondary)
+					}
+				}
+			}
+
+			ForEach(groupedFiles, id: \.0) { folderName, files in
+				Section(folderName) {
+					ForEach(files) { file in
+						NavigationLink {
+							FileInspectorScreen(store: store, file: file)
+						} label: {
+							VStack(alignment: .leading, spacing: 4) {
+								Label(file.title, systemImage: file.icon)
+									.font(.subheadline.weight(.semibold))
+								Text(file.relativePath)
+									.font(.caption.monospaced())
+									.foregroundStyle(.secondary)
+							}
+						}
+					}
+				}
+			}
+		}
+		.scrollContentBackground(.hidden)
+		.background(StudioBackground())
+		.navigationTitle("Files")
+		.toolbar {
+			ToolbarItem(placement: .topBarTrailing) {
+				Button {
+					store.refreshWorkspace()
+				} label: {
+					Image(systemName: "arrow.clockwise")
+				}
+			}
+		}
+	}
+}
+
+private struct FileInspectorScreen: View {
+	@ObservedObject var store: StudioStore
+	let file: WorkspaceItem
+
+	private static let formatter: DateFormatter = {
+		let formatter = DateFormatter()
+		formatter.dateStyle = .medium
+		formatter.timeStyle = .short
+		return formatter
+	}()
+
+	var body: some View {
+		ScrollView {
+			VStack(alignment: .leading, spacing: 18) {
+				FrostCard(title: file.title, subtitle: file.relativePath) {
+					VStack(alignment: .leading, spacing: 10) {
+						InfoRow(title: "Folder", value: file.folderName)
+						InfoRow(title: "Size", value: ByteCountFormatter.string(fromByteCount: file.fileSize, countStyle: .file))
+						if let modifiedAt = file.modifiedAt {
+							InfoRow(title: "Modified", value: Self.formatter.string(from: modifiedAt))
+						}
+						HStack(spacing: 8) {
+							if file.isEditableText { PillLabel(text: "Text", tint: StudioPalette.tide) }
+							if file.isPlist { PillLabel(text: "plist", tint: StudioPalette.amber) }
+						}
+					}
+				}
+
+				if file.isPlist {
+					FrostCard(title: "Plist Inspector", subtitle: "Top-level keys s podporou editace pro jednoduche typy.") {
+						PlistInspectorView(store: store)
+					}
+				} else if file.isEditableText {
+					FrostCard(title: "Preview", subtitle: "Textovy obsah souboru ve workspace.") {
+						TextEditor(text: $store.editorText)
+							.font(.system(.body, design: .monospaced))
+							.foregroundStyle(StudioPalette.ink)
+							.frame(minHeight: 360)
+							.scrollContentBackground(.hidden)
+							.padding(12)
+							.background(
+								RoundedRectangle(cornerRadius: 20, style: .continuous)
+									.fill(StudioPalette.paper)
+							)
+					}
+				} else {
+					FrostCard(title: "Preview") {
+						EmptyState(text: "Tenhle typ souboru zatim nema specializovany preview. Appka ale vidi jeho metadata a umi ho drzet ve workspace.")
+					}
+				}
+			}
+			.padding(20)
+		}
+		.background(StudioBackground())
+		.navigationTitle(file.title)
+		.navigationBarTitleDisplayMode(.inline)
+		.toolbar {
+			ToolbarItem(placement: .topBarTrailing) {
+				Button("Save") {
+					store.saveSelectedFile()
+				}
+				.disabled(!(file.isEditableText || file.isPlist))
+			}
+		}
+		.onAppear {
+			store.loadFile(file)
 		}
 	}
 }
@@ -226,7 +374,7 @@ private struct ReportsView: View {
 							InfoRow(title: "Python", value: report.python_version)
 							InfoRow(title: "Platform", value: report.platform)
 							InfoRow(title: "Workspace", value: report.workspace_dir)
-							InfoRow(title: "Pythonista modules", value: "\(report.pythonista_modules.filter(\.ok).count) healthy")
+							InfoRow(title: "Pythonista modules", value: "\(report.pythonista_modules.filter { $0.ok }.count) healthy")
 						}
 					} else {
 						EmptyState(text: "Zatim nebyl nalezen zadny runtime report.")
@@ -352,6 +500,51 @@ private struct NativeLabView: View {
 			}
 			previewImage = Image(uiImage: uiImage)
 			store.recognizeText(in: uiImage)
+		}
+	}
+}
+
+private struct PlistInspectorView: View {
+	@ObservedObject var store: StudioStore
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 12) {
+			ForEach(store.plistFields) { field in
+				VStack(alignment: .leading, spacing: 6) {
+					HStack {
+						Text(field.key)
+							.font(.subheadline.weight(.semibold))
+							.foregroundStyle(StudioPalette.ink)
+						Spacer()
+						Text(field.kind.rawValue)
+							.font(.caption.monospaced())
+							.foregroundStyle(.secondary)
+					}
+
+					if field.isEditable {
+						TextField(field.key, text: Binding(
+							get: { field.valueText },
+							set: { store.updatePlistField(field, value: $0) }
+						))
+						.textFieldStyle(.roundedBorder)
+						.font(.system(.body, design: .monospaced))
+					} else {
+						Text(field.valueText)
+							.font(.footnote.monospaced())
+							.foregroundStyle(.secondary)
+							.frame(maxWidth: .infinity, alignment: .leading)
+							.padding(10)
+							.background(
+								RoundedRectangle(cornerRadius: 16, style: .continuous)
+									.fill(StudioPalette.paper)
+							)
+					}
+				}
+			}
+
+			if store.plistFields.isEmpty {
+				EmptyState(text: "Tady se objevi top-level plist keys po otevreni plist souboru.")
+			}
 		}
 	}
 }
