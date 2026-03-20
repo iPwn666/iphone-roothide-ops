@@ -6,6 +6,7 @@ Native Swift iPhone workbench for:
 - on-device text editing for Swift, Python, shell, plist and markdown
 - workspace file browser with local plist inspector/editor
 - transport tab with SSH, SMB and path profiles plus exportable connection pack
+- real SSH quick-command panel backed by `swift-ssh-client`
 - importing Pythonista JSON/TXT reports from Files or SMB
 - Vision OCR from screenshots
 - Core ML model inventory from the `Models` folder

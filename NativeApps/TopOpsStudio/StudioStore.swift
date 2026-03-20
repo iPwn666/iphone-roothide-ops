@@ -12,6 +12,9 @@ final class StudioStore: ObservableObject {
 		static let lanHost = "TopOpsStudio.lanHost"
 		static let wireGuardHost = "TopOpsStudio.wireGuardHost"
 		static let usbForwardPort = "TopOpsStudio.usbForwardPort"
+		static let sshUsername = "TopOpsStudio.sshUsername"
+		static let sshPort = "TopOpsStudio.sshPort"
+		static let sshCustomCommand = "TopOpsStudio.sshCustomCommand"
 	}
 
 	@Published var folders: [WorkspaceFolder] = []
@@ -29,6 +32,12 @@ final class StudioStore: ObservableObject {
 	@Published var lanHost: String
 	@Published var wireGuardHost: String
 	@Published var usbForwardPort: String
+	@Published var sshUsername: String
+	@Published var sshPort: String
+	@Published var sshPassword: String
+	@Published var sshCustomCommand: String
+	@Published var sshOutput = ""
+	@Published var sshBusy = false
 
 	private var loadedPlistObject: [String: Any]?
 
@@ -40,6 +49,10 @@ final class StudioStore: ObservableObject {
 		self.lanHost = defaults.string(forKey: DefaultsKey.lanHost) ?? "192.168.50.42"
 		self.wireGuardHost = defaults.string(forKey: DefaultsKey.wireGuardHost) ?? "10.77.0.2"
 		self.usbForwardPort = defaults.string(forKey: DefaultsKey.usbForwardPort) ?? "2222"
+		self.sshUsername = defaults.string(forKey: DefaultsKey.sshUsername) ?? "mobile"
+		self.sshPort = defaults.string(forKey: DefaultsKey.sshPort) ?? "22"
+		self.sshCustomCommand = defaults.string(forKey: DefaultsKey.sshCustomCommand) ?? "uname -a"
+		self.sshPassword = KeychainStore.load(account: "sshPassword")
 		refreshWorkspace()
 	}
 
@@ -660,6 +673,10 @@ final class StudioStore: ObservableObject {
 		defaults.set(lanHost, forKey: DefaultsKey.lanHost)
 		defaults.set(wireGuardHost, forKey: DefaultsKey.wireGuardHost)
 		defaults.set(usbForwardPort, forKey: DefaultsKey.usbForwardPort)
+		defaults.set(sshUsername, forKey: DefaultsKey.sshUsername)
+		defaults.set(sshPort, forKey: DefaultsKey.sshPort)
+		defaults.set(sshCustomCommand, forKey: DefaultsKey.sshCustomCommand)
+		KeychainStore.save(sshPassword, account: "sshPassword")
 	}
 
 	func copyToClipboard(_ value: String) {
@@ -693,6 +710,36 @@ final class StudioStore: ObservableObject {
 			refreshWorkspace()
 		} catch {
 			lastError = "Export connection packu selhal: \(error.localizedDescription)"
+		}
+	}
+
+	func runSSHCommand(_ command: String) {
+		let actualCommand = command.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !actualCommand.isEmpty else { return }
+		persistConnectionSettings()
+		sshBusy = true
+		sshOutput = "Connecting to \(wireGuardHost):\(sshPort)..."
+
+		Task {
+			do {
+				let output = try await SSHService.run(
+					host: wireGuardHost,
+					port: sshPort,
+					username: sshUsername,
+					password: sshPassword,
+					command: actualCommand
+				)
+				await MainActor.run {
+					self.sshOutput = output
+					self.sshBusy = false
+				}
+			} catch {
+				await MainActor.run {
+					self.sshOutput = "Command failed\n\n\(error.localizedDescription)"
+					self.sshBusy = false
+					self.lastError = error.localizedDescription
+				}
+			}
 		}
 	}
 

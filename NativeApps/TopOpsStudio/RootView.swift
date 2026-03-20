@@ -242,6 +242,26 @@ private struct TransportView: View {
 								.keyboardType(.numberPad)
 								.multilineTextAlignment(.trailing)
 						}
+						LabeledContent("SSH user") {
+							TextField("mobile", text: $store.sshUsername)
+								.textInputAutocapitalization(.never)
+								.autocorrectionDisabled()
+								.multilineTextAlignment(.trailing)
+						}
+						LabeledContent("SSH port") {
+							TextField("22", text: $store.sshPort)
+								.keyboardType(.numberPad)
+								.multilineTextAlignment(.trailing)
+						}
+						VStack(alignment: .leading, spacing: 6) {
+							Text("SSH password")
+								.font(.caption.weight(.semibold))
+								.foregroundStyle(.secondary)
+							SecureField("Password", text: $store.sshPassword)
+								.textInputAutocapitalization(.never)
+								.autocorrectionDisabled()
+								.textFieldStyle(.roundedBorder)
+						}
 
 						HStack(spacing: 12) {
 							Button("Save defaults") {
@@ -254,6 +274,46 @@ private struct TransportView: View {
 							}
 							.buttonStyle(.bordered)
 						}
+					}
+				}
+
+				FrostCard(title: "SSH Console", subtitle: "Prvni realny SSH quick-command client. Heslo se uklada do Keychain.") {
+					VStack(alignment: .leading, spacing: 12) {
+						TextField("Custom command", text: $store.sshCustomCommand)
+							.textFieldStyle(.roundedBorder)
+							.font(.system(.body, design: .monospaced))
+
+						HStack(spacing: 10) {
+							SSHActionButton(title: "Test", tint: StudioPalette.tide) {
+								store.runSSHCommand("whoami && uname -a")
+							}
+							SSHActionButton(title: "JB", tint: StudioPalette.mint) {
+								store.runSSHCommand("ls -la /var/jb | head")
+							}
+							SSHActionButton(title: "Root", tint: StudioPalette.amber) {
+								store.runSSHCommand("ls -la /var/root | head")
+							}
+						}
+
+						Button {
+							store.runSSHCommand(store.sshCustomCommand)
+						} label: {
+							Label("Run custom command", systemImage: "play.fill")
+								.font(.subheadline.weight(.semibold))
+						}
+						.buttonStyle(.borderedProminent)
+						.tint(StudioPalette.coral)
+						.disabled(store.sshBusy)
+
+						Text(store.sshOutput.isEmpty ? "SSH output se objevi tady." : store.sshOutput)
+							.font(.footnote.monospaced())
+							.foregroundStyle(store.sshOutput.isEmpty ? .secondary : StudioPalette.ink)
+							.frame(maxWidth: .infinity, alignment: .leading)
+							.padding(12)
+							.background(
+								RoundedRectangle(cornerRadius: 18, style: .continuous)
+									.fill(StudioPalette.paper)
+							)
 					}
 				}
 
@@ -301,6 +361,18 @@ private struct TransportView: View {
 		}
 		.background(StudioBackground())
 		.navigationTitle("Transport")
+	}
+}
+
+private struct SSHActionButton: View {
+	let title: String
+	let tint: Color
+	let action: () -> Void
+
+	var body: some View {
+		Button(title, action: action)
+			.buttonStyle(.bordered)
+			.tint(tint)
 	}
 }
 
