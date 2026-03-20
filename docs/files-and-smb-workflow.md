@@ -25,6 +25,7 @@ Paths inside the share:
 
 Current host addresses:
 
+- Hostname: `smb://iPwnZu.local`
 - LAN: `smb://192.168.50.42`
 - WireGuard: `smb://10.77.0.1`
 
@@ -33,9 +34,10 @@ Current host addresses:
 1. Open `Files`.
 2. Tap the `...` menu.
 3. Choose `Connect to Server`.
-4. Enter `smb://192.168.50.42` on local Wi-Fi.
-5. If WireGuard is active, `smb://10.77.0.1` can be used as a fallback.
-6. Open the `iPhoneDrop` share.
+4. Prefer `smb://iPwnZu.local` on local Wi-Fi.
+5. If mDNS is not available, use `smb://192.168.50.42`.
+6. If WireGuard is active, `smb://10.77.0.1` can be used as a fallback.
+7. Open the `iPhoneDrop` share.
 
 ## Recommended flow
 

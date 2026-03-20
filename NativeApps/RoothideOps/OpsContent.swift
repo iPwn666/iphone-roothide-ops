@@ -170,6 +170,7 @@ enum OpsContent {
 					body: "Na hostu je pripraveny share iPhoneDrop. V iPhonu otevri Soubory, klepni na tri tecky a zvol Pripojit k serveru. Pouzij aktualni LAN IP hostu nebo WireGuard IP, pokud je tunel aktivni.",
 					bullets: [
 						"sdileny nazev: iPhoneDrop",
+						"hostname: smb://iPwnZu.local",
 						"LAN priklad: smb://192.168.50.42",
 						"WireGuard priklad: smb://10.77.0.1",
 						"Podslozky: Inbox, FromiPhone, Archives"
