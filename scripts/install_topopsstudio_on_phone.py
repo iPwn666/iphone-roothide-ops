@@ -12,12 +12,16 @@ from pathlib import Path
 
 
 DEFAULT_ARTIFACT_PATTERNS = [
+	"~/Stazene/topopsstudio-*/TopOpsStudio-build/TopOpsStudio.tipa",
+	"~/Stazene/topopsstudio-*/TopOpsStudio-build/TopOpsStudio-unsigned.ipa",
 	"~/Stazene/topopsstudio-*/TopOpsStudio.tipa",
 	"~/Stazene/topopsstudio-*/TopOpsStudio-unsigned.ipa",
+	"~/Stažené/topopsstudio-*/TopOpsStudio-build/TopOpsStudio.tipa",
+	"~/Stažené/topopsstudio-*/TopOpsStudio-build/TopOpsStudio-unsigned.ipa",
 	"~/Stažené/topopsstudio-*/TopOpsStudio.tipa",
 	"~/Stažené/topopsstudio-*/TopOpsStudio-unsigned.ipa",
 ]
-REMOTE_INSTALL_DIR = "/var/jb/var/mobile/Documents/InstallQueue"
+REMOTE_INSTALL_DIR = "/var/mobile/Documents/InstallQueue"
 REMOTE_INSTALL_FILE = f"{REMOTE_INSTALL_DIR}/TopOpsStudio.tipa"
 
 
