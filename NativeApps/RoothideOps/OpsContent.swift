@@ -150,6 +150,34 @@ enum OpsContent {
 			]
 		),
 		OpsArticle(
+			title: "Soubory a SMB",
+			summary: "Nejjednodussi nativni presun souboru mezi iPhonem a hostem bez dalsich appek.",
+			symbol: "folder.badge.gearshape.fill",
+			tint: AppPalette.amber,
+			sections: [
+				OpsSection(
+					title: "Lokální Documents appky",
+					body: "Roothide Ops zaklada ve svem Documents prostoru slozky Imports, Exports, Logs a Scripts. Jsou viditelne v aplikaci Soubory a hodi se pro rychle local-only handoff workflow.",
+					bullets: [
+						"Imports pro vstupni soubory",
+						"Exports pro sdileni ven",
+						"Logs pro diagnostiku",
+						"Scripts pro nouzove helpery"
+					]
+				),
+				OpsSection(
+					title: "SMB share z hostu",
+					body: "Na hostu je pripraveny share iPhoneDrop. V iPhonu otevri Soubory, klepni na tri tecky a zvol Pripojit k serveru. Pouzij aktualni LAN IP hostu nebo WireGuard IP, pokud je tunel aktivni.",
+					bullets: [
+						"sdileny nazev: iPhoneDrop",
+						"LAN priklad: smb://192.168.50.42",
+						"WireGuard priklad: smb://10.77.0.1",
+						"Podslozky: Inbox, FromiPhone, Archives"
+					]
+				)
+			]
+		),
+		OpsArticle(
 			title: "eSign workflow",
 			summary: "Kam eSign zapada pri IPA/TIPA inspekci bez nahrazovani source control a opakovatelnych buildu.",
 			symbol: "shippingbox.and.arrow.backward.fill",
@@ -321,6 +349,13 @@ enum OpsContent {
 			summary: "Zakladni Codex MCP additions pro filesystem, memory, docs a browser tooling.",
 			symbol: "slider.horizontal.3",
 			location: "templates/codex-config-additions.toml",
+			category: "Host"
+		),
+		ToolkitItem(
+			title: "iPhoneDrop SMB",
+			summary: "Host-side SMB share otevritelny primo v aplikaci Soubory pres Pripojit k serveru.",
+			symbol: "externaldrive.connected.to.line.below.fill",
+			location: "smb://<host>/iPhoneDrop",
 			category: "Host"
 		)
 	]
