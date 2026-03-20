@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.swp
+*.tmp
+*.log
+*.bak
+*.orig
+build/
+dist/
+tmp/
+

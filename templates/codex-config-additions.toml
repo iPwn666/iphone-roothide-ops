@@ -1,0 +1,13 @@
+[mcp_servers.filesystem_home]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/home/USER"]
+
+[mcp_servers.memory]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-memory"]
+
+[mcp_servers.chrome_devtools]
+command = "npx"
+args = ["-y", "chrome-devtools-mcp"]
+startup_timeout_sec = 20
+
