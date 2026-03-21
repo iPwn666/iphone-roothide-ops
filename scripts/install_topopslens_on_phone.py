@@ -109,6 +109,38 @@ def install_via_jailbreak_fallback(
 				)
 			]
 		)
+
+		# roothide devices may actually launch from a mirrored app bundle inside
+		# /var/containers/Bundle/Application rather than directly from /var/jb.
+		# Keep that mirrored bundle in sync when it already exists.
+		container_find = run_capture(
+			ssh_base
+			+ [
+				remote_shell(
+					f"find /var/containers/Bundle/Application -maxdepth 2 -name {shlex.quote(app_bundle.name)} | head -n 1"
+				)
+			]
+		)
+		container_app = container_find.stdout.strip()
+		if container_app:
+			container_executable = f"{container_app}/{executable_name}"
+			run(ssh_base + [remote_shell(f"rm -rf {shlex.quote(container_app)} && mkdir -p {shlex.quote(container_app)}")])
+			run(scp_base + ["-r", f"{app_bundle}/.", f"{ssh_base[-1]}:{container_app}/"])
+			run(
+				ssh_base
+				+ [
+					remote_shell(
+						" && ".join(
+							[
+								f"chown -R _installd:_installd {shlex.quote(container_app)}",
+								f"find {shlex.quote(container_app)} -type d -exec chmod 755 {{}} +",
+								f"find {shlex.quote(container_app)} -type f -exec chmod 644 {{}} +",
+								f"chmod 755 {shlex.quote(container_executable)}",
+							]
+						)
+					)
+				]
+			)
 	finally:
 		tempdir.cleanup()
 
