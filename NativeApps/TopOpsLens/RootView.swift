@@ -4,22 +4,22 @@ import UIKit
 
 struct RootView: View {
 	@Environment(\.scenePhase) private var scenePhase
-	@StateObject private var camera = LensCameraController()
+	@StateObject private var runtime = LensRuntime()
 
 	var body: some View {
 		ZStack {
 			LensBackground()
 
-			if !camera.hasActivatedCamera {
-				LensLaunchView(camera: camera)
-			} else if camera.cameraPermission == .authorized {
+			if let camera = runtime.camera, camera.hasActivatedCamera, camera.cameraPermission == .authorized {
 				CameraSurface(camera: camera)
-			} else {
+			} else if let camera = runtime.camera, camera.hasActivatedCamera {
 				PermissionView(camera: camera)
+			} else {
+				LensLaunchView(runtime: runtime)
 			}
 		}
 		.onChange(of: scenePhase) { phase in
-			if phase == .active, camera.hasActivatedCamera {
+			if phase == .active, let camera = runtime.camera, camera.hasActivatedCamera {
 				camera.appDidBecomeActive()
 			}
 		}
@@ -28,7 +28,7 @@ struct RootView: View {
 }
 
 private struct LensLaunchView: View {
-	@ObservedObject var camera: LensCameraController
+	@ObservedObject var runtime: LensRuntime
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 24) {
@@ -54,7 +54,7 @@ private struct LensLaunchView: View {
 			}
 
 			Button {
-				camera.prepareSession()
+				runtime.startCamera()
 			} label: {
 				HStack {
 					Image(systemName: "camera.fill")
@@ -74,6 +74,17 @@ private struct LensLaunchView: View {
 			Spacer()
 		}
 		.padding(24)
+	}
+}
+
+final class LensRuntime: ObservableObject {
+	@Published var camera: LensCameraController?
+
+	func startCamera() {
+		if camera == nil {
+			camera = LensCameraController()
+		}
+		camera?.prepareSession()
 	}
 }
 
