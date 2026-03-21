@@ -1,0 +1,72 @@
+name: "Native App: TopOps Lens"
+
+on:
+  push:
+    branches:
+      - "*"
+    paths:
+      - "NativeApps/TopOpsLens/**"
+      - ".github/workflows/native-topopslens.yml"
+  pull_request:
+    branches:
+      - "*"
+    paths:
+      - "NativeApps/TopOpsLens/**"
+      - ".github/workflows/native-topopslens.yml"
+  workflow_dispatch:
+
+jobs:
+  build-native-app:
+    runs-on: macos-latest
+    steps:
+      - name: Xcode Setup
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Build Tools
+        run: brew install xcodegen ldid
+
+      - name: Generate Project
+        run: |
+          cd NativeApps/TopOpsLens
+          xcodegen generate
+
+      - name: Build
+        run: |
+          xcodebuild \
+            -project NativeApps/TopOpsLens/TopOpsLens.xcodeproj \
+            -scheme TopOpsLens \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination generic/platform=iOS \
+            -derivedDataPath build/TopOpsLens \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Inject TrollStore Signature
+        run: |
+          ldid -SNativeApps/TopOpsLens/TopOpsLens.entitlements \
+            build/TopOpsLens/Build/Products/Release-iphoneos/TopOpsLens.app/TopOpsLens
+
+      - name: Package IPA
+        run: |
+          rm -rf build/TopOpsLens/package
+          mkdir -p build/TopOpsLens/package/Payload
+          cp -R build/TopOpsLens/Build/Products/Release-iphoneos/TopOpsLens.app build/TopOpsLens/package/Payload/
+          cd build/TopOpsLens/package
+          zip -qry ../TopOpsLens-unsigned.ipa Payload
+          cp ../TopOpsLens-unsigned.ipa ../TopOpsLens.tipa
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TopOpsLens-build
+          if-no-files-found: error
+          path: |
+            ${{ github.workspace }}/build/TopOpsLens/Build/Products/Release-iphoneos/*.app
+            ${{ github.workspace }}/build/TopOpsLens/TopOpsLens-unsigned.ipa
+            ${{ github.workspace }}/build/TopOpsLens/TopOpsLens.tipa

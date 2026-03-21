@@ -1,0 +1,47 @@
+name: TopOpsLens
+
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: 5.0
+    PRODUCT_BUNDLE_IDENTIFIER: com.topwnz.TopOpsLens
+    PRODUCT_NAME: TopOpsLens
+    TARGETED_DEVICE_FAMILY: "1"
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_CFBundleDisplayName: TopOps Lens
+    INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.photo-video
+    INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
+    INFOPLIST_KEY_UIFileSharingEnabled: YES
+    INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+    INFOPLIST_KEY_NSCameraUsageDescription: TopOps Lens needs camera access to capture photos and videos.
+    INFOPLIST_KEY_NSMicrophoneUsageDescription: TopOps Lens uses the microphone when recording video clips.
+    INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: TopOps Lens saves your shots to Photos or to its local Captures folder.
+    INFOPLIST_KEY_NSPhotoLibraryUsageDescription: TopOps Lens reads recent captures to build thumbnails and export previews.
+    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone:
+      - UIInterfaceOrientationPortrait
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  TopOpsLens:
+    type: application
+    platform: iOS
+    sources:
+      - path: .
+        excludes:
+          - README.md
+          - project.yml
+    settings:
+      base:
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        CODE_SIGN_ENTITLEMENTS: TopOpsLens.entitlements
+    scheme:
+      testTargets: []
