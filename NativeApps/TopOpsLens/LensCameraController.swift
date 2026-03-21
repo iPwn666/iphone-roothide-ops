@@ -38,6 +38,7 @@ final class LensCameraController: NSObject, ObservableObject {
 	@Published var latestThumbnail: UIImage?
 	@Published var focusMarker: FocusMarker?
 	@Published var toast: LensToast?
+	@Published var hasActivatedCamera = false
 	@Published var isRecording = false
 	@Published var isReady = false
 	@Published var recordingDuration = "00:00"
@@ -88,6 +89,9 @@ final class LensCameraController: NSObject, ObservableObject {
 	}
 
 	func prepareSession() {
+		DispatchQueue.main.async {
+			self.hasActivatedCamera = true
+		}
 		guard !didStart else { return }
 		didStart = true
 		updatePermissions()

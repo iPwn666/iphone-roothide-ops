@@ -10,21 +10,93 @@ struct RootView: View {
 		ZStack {
 			LensBackground()
 
-			if camera.cameraPermission == .authorized {
+			if !camera.hasActivatedCamera {
+				LensLaunchView(camera: camera)
+			} else if camera.cameraPermission == .authorized {
 				CameraSurface(camera: camera)
 			} else {
 				PermissionView(camera: camera)
 			}
 		}
-		.onAppear {
-			camera.prepareSession()
-		}
 		.onChange(of: scenePhase) { phase in
-			if phase == .active {
+			if phase == .active, camera.hasActivatedCamera {
 				camera.appDidBecomeActive()
 			}
 		}
 		.statusBarHidden(true)
+	}
+}
+
+private struct LensLaunchView: View {
+	@ObservedObject var camera: LensCameraController
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 24) {
+			Spacer()
+
+			CapsuleBadge(label: "Native Camera", tint: LensPalette.brass)
+
+			Text("TopOps Lens")
+				.font(.system(size: 40, weight: .bold, design: .rounded))
+				.foregroundStyle(.white)
+
+			Text("ShadowLens-like workflow, but native Swift for your phone. Open the camera only when you want it, then shoot fast.")
+				.font(.title3)
+				.foregroundStyle(.white.opacity(0.74))
+				.fixedSize(horizontal: false, vertical: true)
+
+			GlassPanel {
+				VStack(alignment: .leading, spacing: 12) {
+					LaunchFeatureRow(symbol: "camera.shutter.button", title: "Tap for photo", subtitle: "Fast still capture with look presets.")
+					LaunchFeatureRow(symbol: "record.circle", title: "Hold for video", subtitle: "Clip capture with microphone when allowed.")
+					LaunchFeatureRow(symbol: "viewfinder", title: "Focus and frame", subtitle: "Tap focus, drag exposure, choose framing guide.")
+				}
+			}
+
+			Button {
+				camera.prepareSession()
+			} label: {
+				HStack {
+					Image(systemName: "camera.fill")
+					Text("Start Camera")
+						.fontWeight(.semibold)
+				}
+				.frame(maxWidth: .infinity)
+				.padding(.vertical, 18)
+			}
+			.buttonStyle(.borderedProminent)
+			.tint(LensPalette.ember)
+
+			Text("First open asks for Camera and optionally Microphone and Photos access.")
+				.font(.footnote)
+				.foregroundStyle(.white.opacity(0.58))
+
+			Spacer()
+		}
+		.padding(24)
+	}
+}
+
+private struct LaunchFeatureRow: View {
+	let symbol: String
+	let title: String
+	let subtitle: String
+
+	var body: some View {
+		HStack(alignment: .top, spacing: 12) {
+			Image(systemName: symbol)
+				.font(.system(size: 16, weight: .bold))
+				.frame(width: 22)
+				.foregroundStyle(LensPalette.cyan)
+			VStack(alignment: .leading, spacing: 3) {
+				Text(title)
+					.font(.subheadline.weight(.semibold))
+					.foregroundStyle(.white)
+				Text(subtitle)
+					.font(.footnote)
+					.foregroundStyle(.white.opacity(0.68))
+			}
+		}
 	}
 }
 
