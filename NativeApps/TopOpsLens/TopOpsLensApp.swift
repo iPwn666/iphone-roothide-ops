@@ -1,4 +1,3 @@
-import SwiftUI
 import UIKit
 
 @main
@@ -10,8 +9,8 @@ final class TopOpsLensAppDelegate: UIResponder, UIApplicationDelegate {
 		didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
 	) -> Bool {
 		let window = UIWindow(frame: UIScreen.main.bounds)
-		window.backgroundColor = UIColor(red: 0.07, green: 0.08, blue: 0.11, alpha: 1)
-		window.rootViewController = UIHostingController(rootView: RootView())
+		window.backgroundColor = .black
+		window.rootViewController = RootViewController()
 		window.makeKeyAndVisible()
 		self.window = window
 		return true

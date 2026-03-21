@@ -27,6 +27,7 @@ DEFAULT_ARTIFACT_PATTERNS = [
 REMOTE_INSTALL_DIR = "/var/mobile/Documents/InstallQueue"
 REMOTE_INSTALL_FILE = f"{REMOTE_INSTALL_DIR}/TopOpsLens.tipa"
 REMOTE_JB_APPS_DIR = "/var/jb/Applications"
+REMOTE_ROOT_APPS_DIR = "/Applications"
 
 
 def latest_match(patterns: list[str]) -> Path:
@@ -88,6 +89,8 @@ def install_via_jailbreak_fallback(
 	tempdir, app_bundle, executable_name = extract_app_bundle(artifact)
 	remote_app = f"{REMOTE_JB_APPS_DIR}/{app_bundle.name}"
 	remote_executable = f"{remote_app}/{executable_name}"
+	root_app = f"{REMOTE_ROOT_APPS_DIR}/{app_bundle.name}"
+	root_executable = f"{root_app}/{executable_name}"
 	try:
 		run(ssh_base + [remote_shell(f"mkdir -p {shlex.quote(REMOTE_JB_APPS_DIR)}")])
 		run(ssh_base + [remote_shell(f"rm -rf {shlex.quote(remote_app)}")])
@@ -104,6 +107,26 @@ def install_via_jailbreak_fallback(
 							f"uicache -p {shlex.quote(remote_app)}",
 							f"uiopen --bundleid {shlex.quote(bundle_id)} || true",
 							"sbreload >/dev/null 2>&1 || true",
+						]
+					)
+				)
+			]
+		)
+
+		# roothide launch services may resolve the registered executable through
+		# /Applications rather than /var/jb/Applications. Keep that path in sync.
+		run(ssh_base + [remote_shell(f"mkdir -p {shlex.quote(REMOTE_ROOT_APPS_DIR)}")])
+		run(ssh_base + [remote_shell(f"rm -rf {shlex.quote(root_app)}")])
+		run(scp_base + ["-r", str(app_bundle), f"{ssh_base[-1]}:{REMOTE_ROOT_APPS_DIR}/"])
+		run(
+			ssh_base
+			+ [
+				remote_shell(
+					" && ".join(
+						[
+							f"find {shlex.quote(root_app)} -type d -exec chmod 755 {{}} +",
+							f"find {shlex.quote(root_app)} -type f -exec chmod 644 {{}} +",
+							f"chmod 755 {shlex.quote(root_executable)}",
 						]
 					)
 				)

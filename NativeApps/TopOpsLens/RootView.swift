@@ -1,63 +1,59 @@
-import SwiftUI
+import UIKit
 
-struct RootView: View {
-	var body: some View {
-		ZStack {
-			LensBackground()
+final class RootViewController: UIViewController {
+	override func viewDidLoad() {
+		super.viewDidLoad()
+		view.backgroundColor = .black
 
-			VStack(alignment: .leading, spacing: 24) {
-				Spacer()
+		let titleLabel = UILabel()
+		titleLabel.translatesAutoresizingMaskIntoConstraints = false
+		titleLabel.text = "TopOps Lens"
+		titleLabel.textColor = .white
+		titleLabel.font = .systemFont(ofSize: 34, weight: .bold)
+		titleLabel.textAlignment = .left
+		titleLabel.numberOfLines = 1
 
-				CapsuleBadge(label: "Safe Mode", tint: LensPalette.brass)
+		let badgeLabel = UILabel()
+		badgeLabel.translatesAutoresizingMaskIntoConstraints = false
+		badgeLabel.text = "UIKit Safe Mode"
+		badgeLabel.textColor = .white
+		badgeLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+		badgeLabel.textAlignment = .center
+		badgeLabel.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.25)
+		badgeLabel.layer.borderColor = UIColor.systemOrange.withAlphaComponent(0.7).cgColor
+		badgeLabel.layer.borderWidth = 1
+		badgeLabel.layer.cornerRadius = 16
+		badgeLabel.layer.masksToBounds = true
 
-				Text("TopOps Lens")
-					.font(.system(size: 40, weight: .bold, design: .rounded))
-					.foregroundStyle(.white)
+		let bodyLabel = UILabel()
+		bodyLabel.translatesAutoresizingMaskIntoConstraints = false
+		bodyLabel.text = "Verification build: pure UIKit window + view controller only. No SwiftUI view tree, no camera runtime, no Photos runtime."
+		bodyLabel.textColor = UIColor.white.withAlphaComponent(0.82)
+		bodyLabel.font = .systemFont(ofSize: 18, weight: .regular)
+		bodyLabel.numberOfLines = 0
 
-				Text("This verification build is a minimal native shell with no camera runtime, no Photos runtime, and no custom launch dependencies.")
-					.font(.title3)
-					.foregroundStyle(.white.opacity(0.74))
-					.fixedSize(horizontal: false, vertical: true)
+		let detailLabel = UILabel()
+		detailLabel.translatesAutoresizingMaskIntoConstraints = false
+		detailLabel.text = "If this stays open, the remaining issue was inside the previous UI stack rather than signing or deployment."
+		detailLabel.textColor = UIColor.white.withAlphaComponent(0.58)
+		detailLabel.font = .systemFont(ofSize: 14, weight: .regular)
+		detailLabel.numberOfLines = 0
 
-				GlassPanel {
-					VStack(alignment: .leading, spacing: 12) {
-						StatusRow(symbol: "checkmark.shield.fill", title: "Launch path", subtitle: "UIKit + SwiftUI only")
-						StatusRow(symbol: "iphone.gen3", title: "Target", subtitle: "iPhone XS / iOS 16.3")
-						StatusRow(symbol: "wrench.and.screwdriver.fill", title: "Purpose", subtitle: "Verify pure app launch before restoring camera layers")
-					}
-				}
+		let stack = UIStackView(arrangedSubviews: [badgeLabel, titleLabel, bodyLabel, detailLabel])
+		stack.translatesAutoresizingMaskIntoConstraints = false
+		stack.axis = .vertical
+		stack.alignment = .leading
+		stack.spacing = 18
 
-				Text("If this opens and stays visible, the remaining problem is inside the original camera stack, not deploy, signing, or bundle registration.")
-					.font(.footnote)
-					.foregroundStyle(.white.opacity(0.58))
+		view.addSubview(stack)
 
-				Spacer()
-			}
-			.padding(24)
-		}
-		.statusBarHidden(true)
-	}
-}
+		NSLayoutConstraint.activate([
+			badgeLabel.heightAnchor.constraint(equalToConstant: 32),
+			badgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 136),
 
-private struct StatusRow: View {
-	let symbol: String
-	let title: String
-	let subtitle: String
-
-	var body: some View {
-		HStack(alignment: .top, spacing: 12) {
-			Image(systemName: symbol)
-				.font(.system(size: 16, weight: .bold))
-				.frame(width: 22)
-				.foregroundStyle(LensPalette.cyan)
-			VStack(alignment: .leading, spacing: 3) {
-				Text(title)
-					.font(.subheadline.weight(.semibold))
-					.foregroundStyle(.white)
-				Text(subtitle)
-					.font(.footnote)
-					.foregroundStyle(.white.opacity(0.68))
-			}
-		}
+			stack.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 24),
+			stack.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -24),
+			stack.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor)
+		])
 	}
 }
