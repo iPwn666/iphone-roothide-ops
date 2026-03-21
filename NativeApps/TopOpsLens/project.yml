@@ -36,6 +36,8 @@ targets:
     sources:
       - path: .
         excludes:
+          - LensCameraController.swift
+          - LensModels.swift
           - README.md
           - project.yml
     settings:
