@@ -129,6 +129,8 @@ def main() -> int:
 
 	ssh_base = [
 		"ssh",
+		"-F",
+		"/dev/null",
 		"-o",
 		"UserKnownHostsFile=/dev/null",
 		"-o",
@@ -139,6 +141,8 @@ def main() -> int:
 	]
 	scp_base = [
 		"scp",
+		"-F",
+		"/dev/null",
 		"-o",
 		"UserKnownHostsFile=/dev/null",
 		"-o",
