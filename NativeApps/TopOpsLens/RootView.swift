@@ -3,92 +3,45 @@ import SwiftUI
 import UIKit
 
 struct RootView: View {
-	@Environment(\.scenePhase) private var scenePhase
-	@StateObject private var runtime = LensRuntime()
-
 	var body: some View {
 		ZStack {
 			LensBackground()
 
-			if let camera = runtime.camera, camera.hasActivatedCamera, camera.cameraPermission == .authorized {
-				CameraSurface(camera: camera)
-			} else if let camera = runtime.camera, camera.hasActivatedCamera {
-				PermissionView(camera: camera)
-			} else {
-				LensLaunchView(runtime: runtime)
+			VStack(alignment: .leading, spacing: 24) {
+				Spacer()
+
+				CapsuleBadge(label: "Safe Mode", tint: LensPalette.brass)
+
+				Text("TopOps Lens")
+					.font(.system(size: 40, weight: .bold, design: .rounded))
+					.foregroundStyle(.white)
+
+				Text("This verification build strips camera runtime and opens into a static native shell. If this screen stays up, launch, signing, and registration are healthy on your phone.")
+					.font(.title3)
+					.foregroundStyle(.white.opacity(0.74))
+					.fixedSize(horizontal: false, vertical: true)
+
+				GlassPanel {
+					VStack(alignment: .leading, spacing: 12) {
+						StatusRow(symbol: "checkmark.shield.fill", title: "Launch path", subtitle: "UIKit + SwiftUI shell only")
+						StatusRow(symbol: "iphone.gen3", title: "Target phone", subtitle: "iPhone XS / iOS 16.3 baseline")
+						StatusRow(symbol: "wrench.and.screwdriver.fill", title: "Next step", subtitle: "Re-enable camera pieces one layer at a time")
+					}
+				}
+
+				Text("Once this build opens reliably, the next pass will restore preview, permissions, and capture incrementally.")
+					.font(.footnote)
+					.foregroundStyle(.white.opacity(0.58))
+
+				Spacer()
 			}
-		}
-		.onChange(of: scenePhase) { phase in
-			if phase == .active, let camera = runtime.camera, camera.hasActivatedCamera {
-				camera.appDidBecomeActive()
-			}
+			.padding(24)
 		}
 		.statusBarHidden(true)
 	}
 }
 
-private struct LensLaunchView: View {
-	@ObservedObject var runtime: LensRuntime
-
-	var body: some View {
-		VStack(alignment: .leading, spacing: 24) {
-			Spacer()
-
-			CapsuleBadge(label: "Native Camera", tint: LensPalette.brass)
-
-			Text("TopOps Lens")
-				.font(.system(size: 40, weight: .bold, design: .rounded))
-				.foregroundStyle(.white)
-
-			Text("ShadowLens-like workflow, but native Swift for your phone. Open the camera only when you want it, then shoot fast.")
-				.font(.title3)
-				.foregroundStyle(.white.opacity(0.74))
-				.fixedSize(horizontal: false, vertical: true)
-
-			GlassPanel {
-				VStack(alignment: .leading, spacing: 12) {
-					LaunchFeatureRow(symbol: "camera.shutter.button", title: "Tap for photo", subtitle: "Fast still capture with look presets.")
-					LaunchFeatureRow(symbol: "record.circle", title: "Hold for video", subtitle: "Clip capture with microphone when allowed.")
-					LaunchFeatureRow(symbol: "viewfinder", title: "Focus and frame", subtitle: "Tap focus, drag exposure, choose framing guide.")
-				}
-			}
-
-			Button {
-				runtime.startCamera()
-			} label: {
-				HStack {
-					Image(systemName: "camera.fill")
-					Text("Start Camera")
-						.fontWeight(.semibold)
-				}
-				.frame(maxWidth: .infinity)
-				.padding(.vertical, 18)
-			}
-			.buttonStyle(.borderedProminent)
-			.tint(LensPalette.ember)
-
-			Text("First open asks for Camera and optionally Microphone and Photos access.")
-				.font(.footnote)
-				.foregroundStyle(.white.opacity(0.58))
-
-			Spacer()
-		}
-		.padding(24)
-	}
-}
-
-final class LensRuntime: ObservableObject {
-	@Published var camera: LensCameraController?
-
-	func startCamera() {
-		if camera == nil {
-			camera = LensCameraController()
-		}
-		camera?.prepareSession()
-	}
-}
-
-private struct LaunchFeatureRow: View {
+private struct StatusRow: View {
 	let symbol: String
 	let title: String
 	let subtitle: String

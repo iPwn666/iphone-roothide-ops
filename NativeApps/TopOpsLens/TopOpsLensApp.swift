@@ -9,10 +9,8 @@ final class TopOpsLensAppDelegate: UIResponder, UIApplicationDelegate {
 		_ application: UIApplication,
 		didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
 	) -> Bool {
-		LensCameraController.ensureWorkspace()
-
 		let window = UIWindow(frame: UIScreen.main.bounds)
-		window.backgroundColor = .black
+		window.backgroundColor = UIColor(red: 0.07, green: 0.08, blue: 0.11, alpha: 1)
 		window.rootViewController = UIHostingController(rootView: RootView())
 		window.makeKeyAndVisible()
 		self.window = window
