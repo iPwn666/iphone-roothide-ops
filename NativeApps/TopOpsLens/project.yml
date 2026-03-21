@@ -8,11 +8,11 @@ options:
 settings:
   base:
     SWIFT_VERSION: 5.0
-    PRODUCT_BUNDLE_IDENTIFIER: com.topwnz.TopOpsLens
+    PRODUCT_BUNDLE_IDENTIFIER: com.topwnz.TopOpsLensFresh
     PRODUCT_NAME: TopOpsLens
     TARGETED_DEVICE_FAMILY: "1"
     GENERATE_INFOPLIST_FILE: YES
-    INFOPLIST_KEY_CFBundleDisplayName: TopOps Lens
+    INFOPLIST_KEY_CFBundleDisplayName: TopOps Lens Fresh
     INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.photo-video
     INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
     INFOPLIST_KEY_UIFileSharingEnabled: YES

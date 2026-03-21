@@ -7,7 +7,7 @@ final class RootViewController: UIViewController {
 
 		let titleLabel = UILabel()
 		titleLabel.translatesAutoresizingMaskIntoConstraints = false
-		titleLabel.text = "TopOps Lens"
+		titleLabel.text = "TopOps Lens Fresh"
 		titleLabel.textColor = .white
 		titleLabel.font = .systemFont(ofSize: 34, weight: .bold)
 		titleLabel.textAlignment = .left
@@ -15,7 +15,7 @@ final class RootViewController: UIViewController {
 
 		let badgeLabel = UILabel()
 		badgeLabel.translatesAutoresizingMaskIntoConstraints = false
-		badgeLabel.text = "UIKit Safe Mode"
+		badgeLabel.text = "Fresh Bundle UIKit Mode"
 		badgeLabel.textColor = .white
 		badgeLabel.font = .systemFont(ofSize: 13, weight: .semibold)
 		badgeLabel.textAlignment = .center

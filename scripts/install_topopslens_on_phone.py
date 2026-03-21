@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
 	return parser.parse_args()
 
 
-def extract_app_bundle(artifact: Path) -> tuple[tempfile.TemporaryDirectory[str], Path, str]:
+def extract_app_bundle(artifact: Path) -> tuple[tempfile.TemporaryDirectory[str], Path, str, str]:
 	tempdir = tempfile.TemporaryDirectory(prefix="topopslens-install-")
 	root = Path(tempdir.name)
 	with zipfile.ZipFile(artifact) as archive:
@@ -74,19 +74,22 @@ def extract_app_bundle(artifact: Path) -> tuple[tempfile.TemporaryDirectory[str]
 	with info_plist.open("rb") as handle:
 		info = plistlib.load(handle)
 	executable = info.get("CFBundleExecutable")
+	bundle_id = info.get("CFBundleIdentifier")
 	if not executable:
 		tempdir.cleanup()
 		raise RuntimeError(f"Missing CFBundleExecutable in {info_plist}.")
-	return tempdir, apps[0], executable
+	if not bundle_id:
+		tempdir.cleanup()
+		raise RuntimeError(f"Missing CFBundleIdentifier in {info_plist}.")
+	return tempdir, apps[0], executable, bundle_id
 
 
 def install_via_jailbreak_fallback(
 	artifact: Path,
 	ssh_base: list[str],
 	scp_base: list[str],
-	bundle_id: str,
 ) -> None:
-	tempdir, app_bundle, executable_name = extract_app_bundle(artifact)
+	tempdir, app_bundle, executable_name, bundle_id = extract_app_bundle(artifact)
 	remote_app = f"{REMOTE_JB_APPS_DIR}/{app_bundle.name}"
 	remote_executable = f"{remote_app}/{executable_name}"
 	root_app = f"{REMOTE_ROOT_APPS_DIR}/{app_bundle.name}"
@@ -228,7 +231,6 @@ def main() -> int:
 			artifact=artifact,
 			ssh_base=ssh_base,
 			scp_base=scp_base,
-			bundle_id="com.topwnz.TopOpsLens",
 		)
 		mode = "jailbreak-fallback"
 	else:
